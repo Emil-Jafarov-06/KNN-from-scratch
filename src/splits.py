@@ -1,4 +1,5 @@
 import numpy as np
+from collections.abc import Iterator
 
 def stratified_split (X : np.ndarray, y : np.ndarray, train_frac =0.6, val_frac =0.2,
                       test_frac =0.2 , seed =42) -> tuple[np.ndarray, ...]:
@@ -54,3 +55,55 @@ def stratified_split (X : np.ndarray, y : np.ndarray, train_frac =0.6, val_frac 
 
     return X_train, X_val, X_test, y_train, y_val, y_test
 
+Fold = tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+
+
+def stratified_kfold(
+    X: np.ndarray,
+    y: np.ndarray,
+    K: int = 5,
+    seed: int = 42,
+) -> Iterator[Fold]:
+    """Yield K stratified training and validation folds."""
+    if not isinstance(X, np.ndarray) or not isinstance(y, np.ndarray):
+        raise TypeError("X and y must be NumPy arrays.")
+    if X.ndim != 2:
+        raise ValueError("X must be a 2D array.")
+    if y.ndim != 1:
+        raise ValueError("y must be a 1D array.")
+    if X.shape[0] == 0:
+        raise ValueError("X and y must not be empty.")
+    if X.shape[0] != y.shape[0]:
+        raise ValueError("X and y must contain the same number of samples.")
+    if type(K) is not int or K < 2:
+        raise ValueError("K must be an integer greater than or equal to 2.")
+
+    _, class_counts = np.unique(y, return_counts=True)
+    if np.any(class_counts < K):
+        raise ValueError("Each class must contain at least K samples.")
+
+    rng = np.random.default_rng(seed)
+
+    validation_folds = [[] for _ in range(K)]
+
+    for label in np.unique(y):
+        class_idx = np.where(y == label)[0]
+        rng.shuffle(class_idx)
+
+        class_parts = np.array_split(class_idx, K)
+        for i in range(K):
+            validation_folds[i].extend(class_parts[i])
+
+    all_indices = np.arange(X.shape[0])
+
+    for fold_number in range(K):
+        val_idx = np.array(validation_folds[fold_number])
+        rng.shuffle(val_idx)
+
+        train_mask = np.ones(X.shape[0], dtype=bool)
+        train_mask[val_idx] = False
+
+        train_idx = all_indices[train_mask]
+        rng.shuffle(train_idx)
+
+        yield X[train_idx], X[val_idx], y[train_idx], y[val_idx]

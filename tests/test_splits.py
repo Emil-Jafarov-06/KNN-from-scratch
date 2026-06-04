@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from src.splits import stratified_split
+from src.splits import stratified_kfold, stratified_split
 
 
 def test_stratified_split_shapes_and_total_size():
@@ -76,3 +76,56 @@ def test_stratified_split_matches_sklearn_proportions():
         np.mean(y_test == 1),
         np.mean(y_test_sk == 1),
     )
+
+def test_stratified_kfold_returns_correct_number_of_folds() -> None:
+    X = np.arange(40).reshape(20, 2)
+    y = np.array([0] * 12 + [1] * 8)
+
+    folds = list(stratified_kfold(X, y, K=4, seed=42))
+
+    assert len(folds) == 4
+
+def test_stratified_kfold_validation_sets_cover_all_samples_once() -> None:
+    X = np.arange(40).reshape(20, 2)
+    y = np.array([0] * 12 + [1] * 8)
+
+    folds = list(stratified_kfold(X, y, K=4, seed=42))
+
+    validation_rows = []
+
+    for _, X_val, _, _ in folds:
+        validation_rows.extend(X_val.tolist())
+
+    validation_rows = np.array(validation_rows)
+
+    assert validation_rows.shape[0] == X.shape[0]
+    assert np.unique(validation_rows, axis=0).shape[0] == X.shape[0]
+
+def test_stratified_kfold_train_and_validation_do_not_overlap() -> None:
+    X = np.arange(40).reshape(20, 2)
+    y = np.array([0] * 12 + [1] * 8)
+
+    folds = list(stratified_kfold(X, y, K=4, seed=42))
+
+    for X_train, X_val, _, _ in folds:
+        train_rows = {tuple(row) for row in X_train}
+        val_rows = {tuple(row) for row in X_val}
+
+        assert train_rows.isdisjoint(val_rows)
+
+def test_stratified_kfold_preserves_class_proportions() -> None:
+    X = np.arange(200).reshape(100, 2)
+    y = np.array([0] * 60 + [1] * 40)
+
+    folds = list(stratified_kfold(X, y, K=5, seed=42))
+
+    full_positive_proportion = np.mean(y == 1)
+
+    for _, _, _, y_val in folds:
+        val_positive_proportion = np.mean(y_val == 1)
+
+        assert np.isclose(
+            val_positive_proportion,
+            full_positive_proportion,
+            atol=0.01,
+        )
