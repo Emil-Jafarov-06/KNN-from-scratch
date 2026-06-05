@@ -1,4 +1,4 @@
-I, [Name], affirm that the work in this submission is my own. I have not shared or received code, plots, or written analysis for this assignment. Where I used AI assistants, I did so only as permitted by the AI/LLM policy in Section 1.2 of this assignment. I can explain every line of code and every paragraph of writing in my submission.
+I, Emil Jafarov, affirm that the work in this submission is my own. I have not shared or received code, plots, or written analysis for this assignment. Where I used AI assistants, I did so only as permitted by the AI/LLM policy in Section 1.2 of this assignment. I can explain every line of code and every paragraph of writing in my submission.
 
 Signed: Emil Jafarov
 Date: 5 June, 2026
