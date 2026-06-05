@@ -180,3 +180,50 @@ def test_predict_proba_rejects_regression() -> None:
 
     with pytest.raises(ValueError):
         model.predict_proba(np.array([[0.5]]))
+
+def test_distance_weighting_gives_more_importance_to_closer_neighbors() -> None:
+    X_train = np.array([[0.0], [4.0], [5.0]])
+    y_train = np.array([0, 1, 1])
+    X_query = np.array([[0.5]])
+
+    uniform_model = KNN(k=3, weights="uniform")
+    distance_model = KNN(k=3, weights="distance")
+
+    uniform_model.fit(X_train, y_train)
+    distance_model.fit(X_train, y_train)
+
+    assert uniform_model.predict(X_query)[0] == 1
+    assert distance_model.predict(X_query)[0] == 0
+
+
+def test_distance_weighting_reduces_to_uniform_for_equidistant_neighbors() -> None:
+    X_train = np.array([[-1.0], [1.0]])
+    y_train = np.array([0, 1])
+    X_query = np.array([[0.0]])
+
+    uniform_model = KNN(k=2, weights="uniform")
+    distance_model = KNN(k=2, weights="distance")
+
+    uniform_model.fit(X_train, y_train)
+    distance_model.fit(X_train, y_train)
+
+    uniform_probabilities = uniform_model.predict_proba(X_query)
+    distance_probabilities = distance_model.predict_proba(X_query)
+
+    assert np.allclose(uniform_probabilities, distance_probabilities)
+    assert np.allclose(distance_probabilities, np.array([[0.5, 0.5]]))
+
+
+def test_distance_weighting_uses_weighted_average_for_regression() -> None:
+    X_train = np.array([[0.0], [4.0]])
+    y_train = np.array([10.0, 30.0])
+    X_query = np.array([[1.0]])
+
+    model = KNN(k=2, task="regression", weights="distance")
+    model.fit(X_train, y_train)
+
+    first_weight = 1 / (1.0 + 1e-8)
+    second_weight = 1 / (3.0 + 1e-8)
+    expected_prediction = (10.0 * first_weight + 30.0 * second_weight) / (first_weight + second_weight)
+
+    assert np.allclose(model.predict(X_query), np.array([expected_prediction]))

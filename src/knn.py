@@ -66,8 +66,24 @@ class KNN:
             elif self.task == "regression":
                 averages = np.mean(values, axis = 1)
                 return averages
+
         elif self.weights == "distance":
-            raise NotImplementedError("Distance weighting has not been implemented yet!")
+            distances = self.__compute_distance(X)
+            values, neighbor_distances = self.__find_neighbors_for_weighted(distances)
+            neighbor_weights = 1 / (neighbor_distances + 1e-8)
+            if self.task == "classification":
+                classes = np.unique(self.y)
+
+                comparisons = values[:, :, None] == classes[None, None, :]
+                weighted_votes = np.sum(comparisons * neighbor_weights[:, :, None],axis=1)
+
+                winning_class_indices = np.argmax(weighted_votes, axis=1)
+                return classes[winning_class_indices]
+
+            elif self.task == "regression":
+                weighted_sum = np.sum(values * neighbor_weights,axis=1,)
+                total_weight = np.sum(neighbor_weights,axis=1)
+                return weighted_sum / total_weight
 
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
@@ -75,17 +91,25 @@ class KNN:
     Output shape : ( n_queries , n_classes )."""
         if self.task == "regression":
             raise ValueError("This method is not compatible with regression task!")
-        if self.weights == "distance":
-            raise NotImplementedError("Distance weighting has not been implemented yet!")
-
         distances = self.__compute_distance(X)
-        values = self.__find_neighbor_values(distances)
         classes = np.unique(self.y)
+        if self.weights == "uniform":
+            values = self.__find_neighbor_values(distances)
 
-        comparisons = values[:, :, None] == classes[None, None, :]
-        votes = np.sum(comparisons, axis=1)
-        votes = votes / np.sum(votes, axis=1, keepdims=True)
-        return votes
+            comparisons = values[:, :, None] == classes[None, None, :]
+            votes = np.sum(comparisons, axis=1)
+            probabilities = votes / np.sum(votes, axis=1, keepdims=True)
+            return probabilities
+
+        elif self.weights == "distance":
+            values, neighbor_distances = self.__find_neighbors_for_weighted(distances)
+            neighbor_weights = 1 / (neighbor_distances + 1e-8)
+
+            comparisons = values[:, :, None] == classes[None, None, :]
+            weighted_votes = np.sum(comparisons * neighbor_weights[:, :, None],axis=1)
+            probabilities = weighted_votes / np.sum(weighted_votes, axis=1, keepdims=True)
+            return probabilities
+
 
 
     def __compute_distance(self, X: np.ndarray) -> np.ndarray:
@@ -118,3 +142,12 @@ class KNN:
     def __find_neighbor_values(self, distances: np.ndarray) -> np.ndarray:
         nearest_neighbor_indices = np.argsort(distances, axis = 1)[:, 0:self.k]
         return self.y[nearest_neighbor_indices]
+
+    def __find_neighbors_for_weighted(
+            self,
+            distances: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        nearest_neighbor_indices = np.argsort(distances, axis=1)[:, :self.k]
+        neighbor_values = self.y[nearest_neighbor_indices]
+        neighbor_distances = np.take_along_axis(distances, nearest_neighbor_indices, axis=1)
+        return neighbor_values, neighbor_distances
