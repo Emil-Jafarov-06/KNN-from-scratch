@@ -100,3 +100,10 @@ def roc_auc(y_true: np.ndarray, y_score: np.ndarray) -> float:
     true_positive_rates = np.array(true_positive_rates)
 
     return float(np.trapezoid(true_positive_rates, false_positive_rates))
+
+    """ Alternative way to calculate the area if a user receives and error:
+    
+    widths = np.diff(false_positive_rates)
+    average_heights = (true_positive_rates[:-1] + true_positive_rates[1:]) / 2
+    return float(np.sum(widths * average_heights))
+    """

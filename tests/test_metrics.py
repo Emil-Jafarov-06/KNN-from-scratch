@@ -39,3 +39,12 @@ def test_metrics_match_sklearn():
         roc_auc(y_true, y_score),
         roc_auc_score(y_true, y_score),
     )
+
+def test_roc_auc_handles_tied_scores():
+    y_true = np.array([0, 1, 0, 1, 1, 0])
+    y_score = np.array([0.0, 0.5, 0.5, 1.0, 0.5, 0.0])
+
+    assert np.isclose(
+        roc_auc(y_true, y_score),
+        roc_auc_score(y_true, y_score),
+    )
